@@ -1,38 +1,34 @@
-package com.example.kentaro.cs499;
+package com.example.kentaro.TwitterGifDownloader;
 
 import android.Manifest;
 import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Environment;
-import android.os.StrictMode;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.text.Editable;
 import android.util.Log;
+import android.util.Patterns;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-//import twitter4j.JSONObject;
 import twitter4j.Status;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
@@ -47,40 +43,64 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        Intent intent = getIntent();
+        String action = intent.getAction();
+        String type = intent.getType();
+
+        if (Intent.ACTION_SEND.equals(action) && type != null) {
+            if ("text/plain".equals(type)) {
+                handleSetText(intent);
+            }
+        }
+
 
         Button download = (Button) findViewById(R.id.download);
         download.setOnClickListener(new View.OnClickListener(){
 
-
-
             @Override
             public void onClick(View v) {
 
-                new Thread(new Runnable() {
-                    public void run() {
+                EditText twitterUrl = (EditText) findViewById(R.id.UrleditText);
+                String twitterId = twitterUrl.getText().toString().split("/")[5];
 
-                        EditText twitterUrl = (EditText) findViewById(R.id.UrleditText);
-                        String twitterId = twitterUrl.getText().toString().split("/")[5];
-
-                        try {
-                            if(haveStoragePermission()){
-                                String fileName = saveMp4(twitterId);
-                                Thread.sleep(1000);
-                                String gifId = convertToGif(fileName);
-                                Thread.sleep(1000);
-                                saveGif(gifId);
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }).start();
+                new DownloadTask().execute(twitterId);
 
             }
         });
+    }
+
+    private static List<String> extractUrls(String input)
+    {
+        List<String> result = new ArrayList<String>();
+
+        String[] words = input.split("\\s+");
 
 
+        Pattern pattern = Patterns.WEB_URL;
+        for(String word : words)
+        {
+            if(pattern.matcher(word).find())
+            {
+                if(!word.toLowerCase().contains("http://") && !word.toLowerCase().contains("https://"))
+                {
+                    word = "http://" + word;
+                }
+                result.add(word);
+            }
+        }
 
+        return result;
+    }
+
+    void handleSetText(Intent intent){
+        EditText text = (EditText) findViewById(R.id.UrleditText);
+        String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
+        String list = extractUrls(sharedText).toString();
+        String string = list.substring(1, list.length()).split("[?]")[0];
+
+        if (sharedText != null) {
+            text.setText(string);
+        }
     }
 
     void deleteFiles(String folder, String ext)
@@ -177,7 +197,6 @@ public class MainActivity extends AppCompatActivity {
         String mediaUrl = "https://video.twimg.com/tweet_video/";
         String mediaId = getMediaId(tweetId);
         mediaUrl += mediaId + ".mp4";
-        Log.i("@@@@@@@@@@@@@@@@@@@", mediaUrl);
         Uri uri = Uri.parse(mediaUrl);
         DownloadManager.Request request = new DownloadManager.Request(uri);
         request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, mediaId + ".mp4");
@@ -203,7 +222,7 @@ public class MainActivity extends AppCompatActivity {
     private static String buildURL(String id){return "http://i.giphy.com/" + id + ".gif";}
 
 
-    class GenericExtFilter implements FilenameFilter {
+    private class GenericExtFilter implements FilenameFilter {
 
         private String ext;
 
@@ -213,6 +232,42 @@ public class MainActivity extends AppCompatActivity {
 
         public boolean accept(File dir, String name) {
             return (name.endsWith(ext));
+        }
+    }
+
+    private class DownloadTask extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String... params) {
+
+            String twitterId = params[0];
+            String fileName;
+            String gifId = "";
+
+
+            try {
+                if(haveStoragePermission()){
+                    fileName= saveMp4(twitterId);
+                    Thread.sleep(1000);
+                    gifId = convertToGif(fileName);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return gifId;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            try {
+                saveGif(result);
+                Context context = getApplicationContext();
+                Toast toast= Toast.makeText(context, "Download Finished", Toast.LENGTH_LONG);
+                toast.show();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
         }
     }
 

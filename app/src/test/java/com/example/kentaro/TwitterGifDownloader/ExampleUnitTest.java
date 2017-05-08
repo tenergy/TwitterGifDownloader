@@ -1,4 +1,4 @@
-package com.example.kentaro.cs499;
+package com.example.kentaro.TwitterGifDownloader;
 
 import org.junit.Test;
 

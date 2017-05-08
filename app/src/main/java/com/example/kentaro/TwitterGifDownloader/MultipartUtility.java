@@ -1,4 +1,4 @@
-package com.example.kentaro.cs499;
+package com.example.kentaro.TwitterGifDownloader;
 
 /**
  * Created by kentaro on 5/1/17.

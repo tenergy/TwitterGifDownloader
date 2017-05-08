@@ -1,4 +1,4 @@
-package com.example.kentaro.cs499;
+package com.example.kentaro.TwitterGifDownloader;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
